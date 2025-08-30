@@ -3,10 +3,10 @@ from pathlib import Path
 from typing import Iterable, List
 from fastapi import UploadFile
 from langchain.schema import Document
-from langchain_community.document_loaders import PyPDFLoader, Docx2txtLoader, TextLoader
+from langchain_community.document_loaders import PyPDFLoader, Docx2txtLoader, TextLoader, UnstructuredPowerPointLoader,CSVLoader,UnstructuredExcelLoader
 from logger import GLOBAL_LOGGER as log
 from exception.custom_exception import DocumentPortalException
-SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".txt"}
+SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".txt", ".pptx", ".csv", ".xlsx", ".xls"}
 
 
 def load_documents(paths: Iterable[Path]) -> List[Document]:
@@ -21,6 +21,12 @@ def load_documents(paths: Iterable[Path]) -> List[Document]:
                 loader = Docx2txtLoader(str(p))
             elif ext == ".txt":
                 loader = TextLoader(str(p), encoding="utf-8")
+            elif ext == ".pptx":
+                loader = UnstructuredPowerPointLoader(str(p))
+            elif ext == ".csv":
+                loader = CSVLoader(str(p), encoding="utf-8")  
+            elif ext in {".xlsx", ".xls"}:
+                loader = UnstructuredExcelLoader(str(p)) 
             else:
                 log.warning("Unsupported extension skipped", path=str(p))
                 continue
@@ -53,9 +59,9 @@ class FastAPIFileAdapter:
         self._uf.file.seek(0)
         return self._uf.file.read()
 
-def read_pdf_via_handler(handler, path: str) -> str:
-    if hasattr(handler, "read_pdf"):
-        return handler.read_pdf(path)  # type: ignore
+def read_file_via_handler(handler, path: str) -> str:
+    if hasattr(handler, "read_file"):
+        return handler.read_file(path)  # type: ignore
     if hasattr(handler, "read_"):
         return handler.read_(path)  # type: ignore
     raise RuntimeError("DocHandler has neither read_pdf nor read_ method.")

@@ -15,7 +15,7 @@ from src.document_ingestion.data_ingestion import (
 from src.document_analyzer.data_analysis import DocumentAnalyzer
 from src.document_compare.document_comparator import DocumentComparatorLLM
 from src.document_chat.retrieval import ConversationalRAG
-from utils.document_ops import FastAPIFileAdapter,read_pdf_via_handler
+from utils.document_ops import FastAPIFileAdapter,read_file_via_handler
 from logger import GLOBAL_LOGGER as log
 
 FAISS_BASE = os.getenv("FAISS_BASE", "faiss_index")
@@ -54,8 +54,8 @@ async def analyze_document(file: UploadFile = File(...)) -> Any:
     try:
         log.info(f"Received file for analysis: {file.filename}")
         dh = DocHandler()
-        saved_path = dh.save_pdf(FastAPIFileAdapter(file))
-        text = read_pdf_via_handler(dh, saved_path)
+        saved_path = dh.save_file(FastAPIFileAdapter(file))
+        text = read_file_via_handler(dh, saved_path)
         analyzer = DocumentAnalyzer()
         result = analyzer.analyze_document(text)
         log.info("Document analysis complete.")

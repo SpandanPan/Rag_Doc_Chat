@@ -8,6 +8,9 @@ import shutil
 from pathlib import Path
 from typing import Iterable, List, Optional, Dict, Any
 import fitz  # PyMuPDF
+import pandas as pd
+import docx
+from pptx import Presentation
 from langchain.schema import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
@@ -17,7 +20,9 @@ from exception.custom_exception import DocumentPortalException
 from utils.file_io import generate_session_id, save_uploaded_files
 from utils.document_ops import load_documents, concat_for_analysis, concat_for_comparison
 
-SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".txt"}
+SUPPORTED_EXTENSIONS = {
+    ".pdf", ".docx", ".txt", ".pptx", ".csv", ".xlsx", ".xls", ".md"
+}
 
 # FAISS Manager (load-or-create)
 class FaissManager:
@@ -143,7 +148,11 @@ class ChatIngestor:
         k: int = 5,):
         try:
             paths = save_uploaded_files(uploaded_files, self.temp_dir)
-            docs = load_documents(paths)
+            # Filter only supported extensions
+            valid_paths = [p for p in paths if p.suffix.lower() in SUPPORTED_EXTENSIONS]
+            if not valid_paths:
+                raise ValueError(f"No supported files found. Supported extensions: {SUPPORTED_EXTENSIONS}")
+            docs = load_documents(valid_paths)
             if not docs:
                 raise ValueError("No valid documents loaded")
             
@@ -183,36 +192,67 @@ class DocHandler:
         os.makedirs(self.session_path, exist_ok=True)
         log.info("DocHandler initialized", session_id=self.session_id, session_path=self.session_path)
 
-    def save_pdf(self, uploaded_file) -> str:
+    def save_file(self, uploaded_file) -> str:
         try:
             filename = os.path.basename(uploaded_file.name)
-            if not filename.lower().endswith(".pdf"):
-                raise ValueError("Invalid file type. Only PDFs are allowed.")
+            ext = Path(filename).suffix.lower()
+            if ext not in SUPPORTED_EXTENSIONS:
+                raise ValueError(f"Unsupported file type: {ext}. Supported: {SUPPORTED_EXTENSIONS}")
             save_path = os.path.join(self.session_path, filename)
             with open(save_path, "wb") as f:
                 if hasattr(uploaded_file, "read"):
                     f.write(uploaded_file.read())
                 else:
                     f.write(uploaded_file.getbuffer())
-            log.info("PDF saved successfully", file=filename, save_path=save_path, session_id=self.session_id)
+            log.info("File saved successfully", file=filename, save_path=save_path, session_id=self.session_id)
             return save_path
         except Exception as e:
-            log.error("Failed to save PDF", error=str(e), session_id=self.session_id)
-            raise DocumentPortalException(f"Failed to save PDF: {str(e)}", e) from e
+            log.error("Failed to save file", error=str(e), session_id=self.session_id)
+            raise DocumentPortalException(f"Failed to save file: {str(e)}", e) from e
 
-    def read_pdf(self, pdf_path: str) -> str:
+    def read_file(self, file_path: str) -> str:
+        path = Path(file_path)
+        ext = path.suffix.lower()
         try:
-            text_chunks = []
-            with fitz.open(pdf_path) as doc:
-                for page_num in range(doc.page_count):
-                    page = doc.load_page(page_num)
-                    text_chunks.append(f"\n--- Page {page_num + 1} ---\n{page.get_text()}")  # type: ignore
-            text = "\n".join(text_chunks)
-            log.info("PDF read successfully", pdf_path=pdf_path, session_id=self.session_id, pages=len(text_chunks))
-            return text
+            if ext == ".pdf":
+                text_chunks = []
+                with fitz.open(path) as doc:
+                    for page_num in range(doc.page_count):
+                        page = doc.load_page(page_num)
+                        text_chunks.append(f"\n--- Page {page_num + 1} ---\n{page.get_text()}")
+                return "\n".join(text_chunks)
+
+            elif ext == ".docx":
+                doc = docx.Document(path)
+                return "\n".join([p.text for p in doc.paragraphs if p.text.strip()])
+
+            elif ext == ".txt":
+                return path.read_text(encoding="utf-8", errors="ignore")
+            
+            elif ext == ".md":
+                return path.read_text(encoding="utf-8", errors="ignore")
+
+            elif ext == ".pptx":
+                prs = Presentation(path)
+                slides = []
+                for i, slide in enumerate(prs.slides):
+                    texts = [shape.text for shape in slide.shapes if hasattr(shape, "text")]
+                    slides.append(f"\n--- Slide {i + 1} ---\n" + "\n".join(texts))
+                return "\n".join(slides)
+
+            elif ext in {".xlsx", ".xls"}:
+                df = pd.read_excel(path)
+                return df.to_csv(index=False)
+
+            elif ext == ".csv":
+                df = pd.read_csv(path)
+                return df.to_csv(index=False)
+
+            else:
+                raise ValueError(f"Unsupported file type: {ext}")
         except Exception as e:
-            log.error("Failed to read PDF", error=str(e), pdf_path=pdf_path, session_id=self.session_id)
-            raise DocumentPortalException(f"Could not process PDF: {pdf_path}", e) from e
+            log.error("Failed to read PDF", error=str(e), file_path=file_path, session_id=self.session_id)
+            raise DocumentPortalException(f"Could not process PDF: {file_path}", e) from e
 class DocumentComparator:
     """
     Save, read & combine PDFs for comparison with session-based versioning.
@@ -225,49 +265,58 @@ class DocumentComparator:
         log.info("DocumentComparator initialized", session_path=str(self.session_path))
 
     def save_uploaded_files(self, reference_file, actual_file):
+        files = {"reference": reference_file, "actual": actual_file}
+        saved_paths = {}
         try:
-            ref_path = self.session_path / reference_file.name
-            act_path = self.session_path / actual_file.name
-            for fobj, out in ((reference_file, ref_path), (actual_file, act_path)):
-                if not fobj.name.lower().endswith(".pdf"):
-                    raise ValueError("Only PDF files are allowed.")
-                with open(out, "wb") as f:
-                    if hasattr(fobj, "read"):
-                        f.write(fobj.read())
-                    else:
-                        f.write(fobj.getbuffer())
-            log.info("Files saved", reference=str(ref_path), actual=str(act_path), session=self.session_id)
-            return ref_path, act_path
+            for label, fobj in files.items():
+                ext = Path(fobj.name).suffix.lower()
+                if ext not in SUPPORTED_EXTENSIONS:
+                    raise ValueError(f"Unsupported file type: {ext}")
+                out_path = self.session_path / fobj.name
+                with open(out_path, "wb") as f:
+                        if hasattr(fobj, "read"):
+                            f.write(fobj.read())
+                        else:
+                            f.write(fobj.getbuffer())
+                saved_paths[label] = out_path
+            log.info("Files saved", reference=str(saved_paths["reference"]),
+                     actual=str(saved_paths["actual"]), session=self.session_id)
+            return saved_paths["reference"], saved_paths["actual"]
+            
         except Exception as e:
-            log.error("Error saving PDF files", error=str(e), session=self.session_id)
+            log.error("Error saving files", error=str(e), session=self.session_id)
             raise DocumentPortalException("Error saving files", e) from e
 
-    def read_pdf(self, pdf_path: Path) -> str:
-        try:
-            with fitz.open(pdf_path) as doc:
-                if doc.is_encrypted:
-                    raise ValueError(f"PDF is encrypted: {pdf_path.name}")
-                parts = []
-                for page_num in range(doc.page_count):
-                    page = doc.load_page(page_num)
-                    text = page.get_text()  # type: ignore
-                    if text.strip():
-                        parts.append(f"\n --- Page {page_num + 1} --- \n{text}")
-            log.info("PDF read successfully", file=str(pdf_path), pages=len(parts))
-            return "\n".join(parts)
-        except Exception as e:
-            log.error("Error reading PDF", file=str(pdf_path), error=str(e))
-            raise DocumentPortalException("Error reading PDF", e) from e
+    # def read_pdf(self, pdf_path: Path) -> str:
+    #     try:
+    #         with fitz.open(pdf_path) as doc:
+    #             if doc.is_encrypted:
+    #                 raise ValueError(f"PDF is encrypted: {pdf_path.name}")
+    #             parts = []
+    #             for page_num in range(doc.page_count):
+    #                 page = doc.load_page(page_num)
+    #                 text = page.get_text()  # type: ignore
+    #                 if text.strip():
+    #                     parts.append(f"\n --- Page {page_num + 1} --- \n{text}")
+    #         log.info("PDF read successfully", file=str(pdf_path), pages=len(parts))
+    #         return "\n".join(parts)
+    #     except Exception as e:
+    #         log.error("Error reading PDF", file=str(pdf_path), error=str(e))
+    #         raise DocumentPortalException("Error reading PDF", e) from e
+    def read_file(self, file_path: Path) -> str:
+        handler = DocHandler(session_id=self.session_id)
+        return handler.read_file(str(file_path))
 
     def combine_documents(self) -> str:
+        
         try:
-            doc_parts = []
+            combined_parts = []
             for file in sorted(self.session_path.iterdir()):
-                if file.is_file() and file.suffix.lower() == ".pdf":
-                    content = self.read_pdf(file)
-                    doc_parts.append(f"Document: {file.name}\n{content}")
-            combined_text = "\n\n".join(doc_parts)
-            log.info("Documents combined", count=len(doc_parts), session=self.session_id)
+                if file.is_file() and file.suffix.lower() in SUPPORTED_EXTENSIONS:
+                    content = self.read_file(file)
+                    combined_parts.append(f"Document: {file.name}\n{content}")
+            combined_text = "\n\n".join(combined_parts)
+            log.info("Documents combined", count=len(combined_parts), session=self.session_id)
             return combined_text
         except Exception as e:
             log.error("Error combining documents", error=str(e), session=self.session_id)
