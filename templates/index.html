@@ -10,6 +10,37 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link href="/static/style.css" rel="stylesheet" />
 </head>
+<!-- Add this at the very top of <body>, before everything else -->
+  <div id="login-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;
+  background:rgba(0,0,0,0.7);display:flex;justify-content:center;align-items:center;z-index:9999;">
+<div class="login-box" style="background:white;padding:2rem;border-radius:8px;width:300px;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,0.2);">
+ <h2>Login</h2>
+ <input type="text" id="login-username" placeholder="Username" style="width:100%;margin-bottom:1rem;padding:0.5rem;font-size:1rem;" />
+ <input type="password" id="login-password" placeholder="Password" style="width:100%;margin-bottom:1rem;padding:0.5rem;font-size:1rem;" />
+ <button onclick="performLogin()" style="width:100%;padding:0.5rem;font-size:1rem;background:#007bff;color:white;border:none;border-radius:4px;cursor:pointer;">Login</button>
+ <div id="login-error" style="color:red;margin-top:0.5rem;font-size:0.9rem;"></div>
+</div>
+</div>
+
+<script>
+function performLogin() {
+ const username = document.getElementById('login-username').value.trim();
+ const password = document.getElementById('login-password').value.trim();
+ const errorDiv = document.getElementById('login-error');
+
+ if (!username || !password) {
+   errorDiv.textContent = "Enter both username and password.";
+   return;
+ }
+
+ // Dummy login check
+ if (username === "admin" && password === "1234") {
+   document.getElementById('login-overlay').style.display = 'none';
+ } else {
+   errorDiv.textContent = "Invalid username or password.";
+ }
+}
+</script>
 <body>
   <header class="app-header">
     <div class="brand">
