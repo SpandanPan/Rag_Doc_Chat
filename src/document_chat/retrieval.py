@@ -7,6 +7,7 @@ from langchain_core.messages import BaseMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_community.vectorstores import FAISS
+from langchain.memory import ConversationBufferMemory
 
 from utils.model_loader import ModelLoader
 from exception.custom_exception import DocumentPortalException
@@ -43,6 +44,7 @@ class ConversationalRAG:
             self.chain = None
             if self.retriever is not None:
                 self._build_lcel_chain()
+            self.memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
             log.info("ConversationalRAG initialized", session_id=self.session_id)
         except Exception as e:
@@ -95,16 +97,20 @@ class ConversationalRAG:
             log.error("Failed to load retriever from FAISS", error=str(e))
             raise DocumentPortalException("Loading error in ConversationalRAG", sys)
 
-    def invoke(self, user_input: str, chat_history: Optional[List[BaseMessage]] = None) -> str:
+    def invoke(self, user_input: str) -> str:
         """Invoke the LCEL pipeline."""
         try:
             if self.chain is None:
                 raise DocumentPortalException(
                     "RAG chain not initialized. Call load_retriever_from_faiss() before invoke().", sys
                 )
-            chat_history = chat_history or []
-            payload = {"input": user_input, "chat_history": chat_history}
-            answer = self.chain.invoke(payload)
+            #chat_history = chat_history or []
+            #payload = {"input": user_input, "chat_history": chat_history}
+            payload = {"input": user_input}
+            answer = self.chain.invoke({
+            "input": user_input,
+             "chat_history": self.memory.load_memory_variables({})["chat_history"]
+                })
             if not answer:
                 log.warning(
                     "No answer generated", user_input=user_input, session_id=self.session_id
@@ -124,6 +130,7 @@ class ConversationalRAG:
     # ---------- Internals ----------
 
     def _load_llm(self):
+        
         try:
             llm = ModelLoader().load_llm()
             if not llm:
@@ -139,6 +146,7 @@ class ConversationalRAG:
         return "\n\n".join(getattr(d, "page_content", str(d)) for d in docs)
 
     def _build_lcel_chain(self):
+        self.memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
         try:
             if self.retriever is None:
                 raise DocumentPortalException("No retriever set before building chain", sys)
@@ -165,6 +173,7 @@ class ConversationalRAG:
                 | self.llm
                 | StrOutputParser()
             )
+            
 
             log.info("LCEL graph built successfully", session_id=self.session_id)
         except Exception as e:

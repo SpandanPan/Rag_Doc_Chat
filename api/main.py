@@ -140,7 +140,8 @@ async def chat_query(
 
         rag = ConversationalRAG(session_id=session_id)
         rag.load_retriever_from_faiss(index_dir, k=k, index_name=FAISS_INDEX_NAME)  # build retriever + chain
-        response = rag.invoke(question, chat_history=[])
+        #response = rag.invoke(question, chat_history=[])
+        response = rag.invoke(question)
         log.info("Chat query handled successfully.")
 
         return {

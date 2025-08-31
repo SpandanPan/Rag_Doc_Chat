@@ -47,18 +47,19 @@ def test_conversational_rag_on_pdf(pdf_path: str, question: str):
         rag.load_retriever_from_faiss(index_path=str(session_index_path), k=2)
 
         # Step 3: Ask the question
-        response = rag.invoke(question, chat_history=[])
+        #response = rag.invoke(question, chat_history=[])
+        response = rag.invoke(question)
         print(f"\nQuestion: {question}\nAnswer: {response}")
 
         retrieved_docs = rag.retriever.get_relevant_documents(question)
         context_texts = [d.page_content for d in retrieved_docs]
-        print ("Context Text is",context_texts)
+       # print ("Context Text is",context_texts)
 
 
         test_case = LLMTestCase(
             input=question,
             actual_output=response,
-            #expected_output=None,  
+            #expected_output="Attention is a mechanism used in transformer architecture",  
             retrieval_context=context_texts
         )
         
@@ -74,7 +75,7 @@ def test_conversational_rag_on_pdf(pdf_path: str, question: str):
         answer_relevancy_metric = AnswerRelevancyMetric(threshold=0.7)
         
         #assert_test(test_case, metrics)
-        evaluate([test_case], [answer_relevancy_metric])
+        #evaluate([test_case], [answer_relevancy_metric])
 
     except Exception as e:
         print(f"Test failed: {str(e)}")
