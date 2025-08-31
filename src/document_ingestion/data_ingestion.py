@@ -18,7 +18,7 @@ from utils.model_loader import ModelLoader
 from logger import GLOBAL_LOGGER as log
 from exception.custom_exception import DocumentPortalException
 from utils.file_io import generate_session_id, save_uploaded_files
-from utils.document_ops import load_documents, concat_for_analysis, concat_for_comparison
+from utils.document_ops import load_documents,load_documents_from_sql,load_excel_or_csv_as_documents
 
 SUPPORTED_EXTENSIONS = {
     ".pdf", ".docx", ".txt", ".pptx", ".csv", ".xlsx", ".xls", ".md"
@@ -142,41 +142,55 @@ class ChatIngestor:
     
     def built_retriver( self,
         uploaded_files: Iterable,
+        sql_config: Optional[Dict[str, Any]] = None,
         *,
         chunk_size: int = 1000,
         chunk_overlap: int = 200,
         k: int = 5,):
-        try:
+       
+        docs: List[Document] = []
+
+        if uploaded_files and sql_config:
+            raise ValueError("Provide either uploaded_files or sql_config, not both.")
+
+        # Load uploaded files
+        if uploaded_files:
             paths = save_uploaded_files(uploaded_files, self.temp_dir)
-            # Filter only supported extensions
-            valid_paths = [p for p in paths if p.suffix.lower() in SUPPORTED_EXTENSIONS]
-            if not valid_paths:
-                raise ValueError(f"No supported files found. Supported extensions: {SUPPORTED_EXTENSIONS}")
-            docs = load_documents(valid_paths)
-            if not docs:
-                raise ValueError("No valid documents loaded")
-            
-            chunks = self._split(docs, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
-            
-            ## FAISS manager very very important class for the docchat
-            fm = FaissManager(self.faiss_dir, self.model_loader)
-            
-            texts = [c.page_content for c in chunks]
-            metas = [c.metadata for c in chunks]
-            
-            try:
-                vs = fm.load_or_create(texts=texts, metadatas=metas)
-            except Exception:
-                vs = fm.load_or_create(texts=texts, metadatas=metas)
-                
+            for p in paths:
+                try:
+                    if p.suffix.lower() in {".xlsx", ".csv"}:
+                        docs.extend(load_excel_or_csv_as_documents(p))
+                    else:
+                        docs.extend(load_documents([p]))
+                except Exception as e:
+                    log.error("Failed to process file", file=str(p), error=str(e))
+        elif sql_config:
+            docs.extend(load_documents_from_sql(
+            connection_string=sql_config["connection_string"],
+            query=sql_config["query"],
+            metadata_fields=sql_config.get("metadata_fields")
+        ))
+
+        else:
+            raise ValueError("No source provided. Must provide either uploaded_files or sql_config.")
+
+        if not docs:
+            raise ValueError("No valid documents loaded")
+
+        chunks = self._split(docs, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+        fm = FaissManager(self.faiss_dir, self.model_loader)
+        texts = [c.page_content for c in chunks]
+        metas = [c.metadata for c in chunks]
+
+        try:
+            vs = fm.load_or_create(texts=texts, metadatas=metas)
             added = fm.add_documents(chunks)
             log.info("FAISS index updated", added=added, index=str(self.faiss_dir))
-            
-            return vs.as_retriever(search_type="similarity", search_kwargs={"k": k})
-            
+        
         except Exception as e:
-            log.error("Failed to build retriever", error=str(e))
-            raise DocumentPortalException("Failed to build retriever", e) from e
+             log.error("Failed to build retriever", error=str(e))
+             raise DocumentPortalException("Failed to build retriever", e) from e
+
 
             
         
@@ -251,8 +265,8 @@ class DocHandler:
             else:
                 raise ValueError(f"Unsupported file type: {ext}")
         except Exception as e:
-            log.error("Failed to read PDF", error=str(e), file_path=file_path, session_id=self.session_id)
-            raise DocumentPortalException(f"Could not process PDF: {file_path}", e) from e
+            log.error("Failed to read file", error=str(e), file_path=file_path, session_id=self.session_id)
+            raise DocumentPortalException(f"Could not process file: {file_path}", e) from e
 class DocumentComparator:
     """
     Save, read & combine PDFs for comparison with session-based versioning.
@@ -286,23 +300,6 @@ class DocumentComparator:
         except Exception as e:
             log.error("Error saving files", error=str(e), session=self.session_id)
             raise DocumentPortalException("Error saving files", e) from e
-
-    # def read_pdf(self, pdf_path: Path) -> str:
-    #     try:
-    #         with fitz.open(pdf_path) as doc:
-    #             if doc.is_encrypted:
-    #                 raise ValueError(f"PDF is encrypted: {pdf_path.name}")
-    #             parts = []
-    #             for page_num in range(doc.page_count):
-    #                 page = doc.load_page(page_num)
-    #                 text = page.get_text()  # type: ignore
-    #                 if text.strip():
-    #                     parts.append(f"\n --- Page {page_num + 1} --- \n{text}")
-    #         log.info("PDF read successfully", file=str(pdf_path), pages=len(parts))
-    #         return "\n".join(parts)
-    #     except Exception as e:
-    #         log.error("Error reading PDF", file=str(pdf_path), error=str(e))
-    #         raise DocumentPortalException("Error reading PDF", e) from e
     def read_file(self, file_path: Path) -> str:
         handler = DocHandler(session_id=self.session_id)
         return handler.read_file(str(file_path))

@@ -8,6 +8,17 @@ from langchain_groq import ChatGroq
 from logger import GLOBAL_LOGGER as log
 from exception.custom_exception import DocumentPortalException
 
+# from deepeval import evaluate
+# from deepeval.tasks import QuestionAnsweringTask
+# from deepeval.metrics import (
+#     CorrectnessMetric,
+#     ContextualPrecisionMetric,
+#     ContextualRecallMetric,
+#     ContextualRelevancyMetric,
+#     FluencyMetric,
+#     ConcisenessMetric,
+# )
+
 
 class ApiKeyManager:
     REQUIRED_KEYS = ["GROQ_API_KEY", "GOOGLE_API_KEY"]
@@ -78,13 +89,14 @@ class ModelLoader:
         except Exception as e:
             log.error("Error loading embedding model", error=str(e))
             raise DocumentPortalException("Failed to load embedding model", sys)
-
+    
     def load_llm(self):
         """
         Load and return the configured LLM model.
         """
         llm_block = self.config["llm"]
         provider_key = os.getenv("LLM_PROVIDER", "google")
+        
 
         if provider_key not in llm_block:
             log.error("LLM provider not found in config", provider=provider_key)
@@ -124,6 +136,49 @@ class ModelLoader:
         else:
             log.error("Unsupported LLM provider", provider=provider)
             raise ValueError(f"Unsupported LLM provider: {provider}")
+
+class EvalModelLoader:
+    def __init__(self):
+        self.config = load_config()
+        self.api_key_mgr = ApiKeyManager()
+
+    def load_evaluation_llm(self):
+        """
+        Load evaluation LLM config (from YAML + env).
+        Returns model_name for use in evaluation.
+        """
+        eval_llm_block = self.config["evaluation_model"]
+        provider_key = os.getenv("EVAL_LLM_PROVIDER", "groq")
+        llm_config = eval_llm_block[provider_key]
+
+        model_name = llm_config.get("model_name")
+        return model_name
+
+
+# def run_evaluation(prediction: str, reference: str, context: str, model_name: str):
+#     """
+#     Run DeepEval QA evaluation with multiple metrics.
+#     """
+#     # Define evaluation task
+#     task = QuestionAnsweringTask(
+#         predictions=[prediction],
+#         references=[reference],
+#         contexts=[context],
+#     )
+
+#     # Define metrics
+#     metrics = [
+#         CorrectnessMetric(model=model_name),
+#         ContextualPrecisionMetric(model=model_name),
+#         ContextualRecallMetric(model=model_name),
+#         ContextualRelevancyMetric(model=model_name),
+#         FluencyMetric(model=model_name),
+#         ConcisenessMetric(model=model_name),
+#     ]
+
+#     # Run evaluation
+#     results = evaluate([task], metrics=metrics, model=model_name)
+#     return results[0]
 
 
 if __name__ == "__main__":

@@ -21,3 +21,11 @@ llm:
     model_name: "gemini-2.0-flash"
     temperature: 0
     max_output_tokens: 2048
+
+evaluation_model:
+  groq:
+    provider: "groq"
+    model_name: "openai/gpt-oss-20b"
+    temperature: 0
+    max_output_tokens: 1024
+

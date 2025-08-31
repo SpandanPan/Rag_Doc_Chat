@@ -50,15 +50,15 @@
     <section id="tab-compare" class="tab-panel">
       <div class="card">
         <h2>🆚 Compare Two Documents</h2>
-        <p class="muted">Upload a reference PDF and an actual PDF to see page-wise differences.</p>
+        <p class="muted">Upload a reference file and an actual file to see page-wise differences.</p>
         <form id="form-compare" class="form-grid-2" onsubmit="return false;">
           <div class="field">
-            <label for="cmp-ref">Reference PDF</label>
-            <input id="cmp-ref" type="file" accept=".pdf" required />
+            <label for="cmp-ref">Reference File</label>
+            <input id="cmp-ref" type="file" required />
           </div>
           <div class="field">
-            <label for="cmp-act">Actual PDF</label>
-            <input id="cmp-act" type="file" accept=".pdf" required />
+            <label for="cmp-act">Actual File</label>
+            <input id="cmp-act" type="file" required />
           </div>
           <div class="actions span-2">
             <button id="btn-compare" class="btn primary">Compare</button>
@@ -85,12 +85,12 @@
     <section id="tab-chat" class="tab-panel">
       <div class="card">
         <h2>💬 Chat with your Documents</h2>
-        <p class="muted">Upload PDF/DOCX/TXT; we’ll index to FAISS and enable RAG chat.</p>
+        <p class="muted">Upload PDF/DOCX/TXT/CSV/XLS; we’ll index to FAISS and enable RAG chat.</p>
 
         <form id="form-chat-index" class="form-grid" onsubmit="return false;">
           <div class="field">
             <label for="chat-files">Upload files</label>
-            <input id="chat-files" type="file" multiple accept=".pdf,.docx,.txt" />
+            <input id="chat-files" type="file" multiple accept=".pdf,.docx,.txt,.csv,.xls,.xlsx,.md" />
             <small class="help">You can select multiple files.</small>
           </div>
 
@@ -175,7 +175,7 @@
   document.getElementById("btn-analyze").addEventListener("click", async () => {
     const file = document.getElementById("an-file").files[0];
     const out  = document.getElementById("an-json");
-    if (!file) { out.textContent = "Please upload a PDF."; return; }
+    if (!file) { out.textContent = "Please upload a FileFil."; return; }
 
     try {
       out.textContent = "Running analysis…";
@@ -201,7 +201,7 @@
     const tbody = document.querySelector("#cmp-table tbody");
 
     if (!ref || !act) {
-      tbody.innerHTML = `<tr><td colspan="2" class="muted center">Upload both PDFs.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="2" class="muted center">Upload both Files.</td></tr>`;
       return;
     }
 
