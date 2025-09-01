@@ -8,17 +8,6 @@ from langchain_groq import ChatGroq
 from logger import GLOBAL_LOGGER as log
 from exception.custom_exception import DocumentPortalException
 
-# from deepeval import evaluate
-# from deepeval.tasks import QuestionAnsweringTask
-# from deepeval.metrics import (
-#     CorrectnessMetric,
-#     ContextualPrecisionMetric,
-#     ContextualRecallMetric,
-#     ContextualRelevancyMetric,
-#     FluencyMetric,
-#     ConcisenessMetric,
-# )
-
 
 class ApiKeyManager:
     REQUIRED_KEYS = ["GROQ_API_KEY", "GOOGLE_API_KEY"]
