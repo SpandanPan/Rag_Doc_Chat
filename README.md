@@ -14,6 +14,7 @@ Refer to main/src/document_chat/retrieval.py
 
 # Added pre-commit/post-commit hooks
 Refer to .pre-commit-config.yaml
+Added post commit hooks as well  - can test on commit
 Refer to .github/workflows/tests.yml  - For checks on push to main
 
 # Added Login screen
