@@ -119,7 +119,6 @@ def test_document_analyzer_init_failure():
         with pytest.raises(DocumentPortalException) as exc_info:
             DocumentAnalyzer()
         assert "Error in DocumentAnalyzer initialization" in str(exc_info.value)
-
 def test_document_analyzer_init_success():
     from src.document_analyzer.data_analysis import DocumentAnalyzer
     from unittest.mock import patch, MagicMock
