@@ -26,6 +26,6 @@ unstructured[all-docs]>=0.15.0
 xlrd==1.2.0
 pytest-cov==4.1.0
 coverage==7.4.1
-deepeval==2.1.5
-pre-commit-4.3.0
+deepeval==3.4.2
+pre-commit==4.0.1
 -e .
