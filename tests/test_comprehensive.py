@@ -110,7 +110,6 @@ def test_format_docs_with_page_content():
     result = rag._format_docs(docs)
     assert "doc1" in result and "doc2" in result
 
-
 # Document Analyzer
     
 def test_document_analyzer_init_failure():
