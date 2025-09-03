@@ -1,3 +1,30 @@
+# Assignment 
+
+# Added functionalities
+
+```bash
+# Added functionality to ingest csv,xlsx,pptx
+Refer to src/document_ingestion/data_ingestion.py
+
+# Added Unit Tests 
+Refer to /tests/test_comprehensive.py
+
+# Added langchain chache
+Refer to main/src/document_chat/retrieval.py
+
+# Added pre-commit/post-commit hooks
+Refer to .pre-commit-config.yaml
+Refer to .github/workflows/tests.yml  - For checks on push to main
+
+# Added Login screen
+Refer to index.html
+username - admin
+password - 1234
+
+# Added evaluation metric using deepeval 
+Only included correctness, can add other metrics like relevance etc. as I ran out of token limit, as deepeval requires openai api key
+Refer to deep_eval_rag.py
+
 # Project Setup Guide
 
 ## Create Project Folder and Environment Setup
@@ -24,46 +51,5 @@ pip install -r requirements.txt
 # Initialize Git
 git init
 
-# Stage all files
-git add .
-
-# Commit changes
-git commit -m "<write your commit message>"
-
-# Push to remote (after adding remote origin)
-git push
-
-# Cloning the repository
-git clone https://github.com/sunnysavita10/document_portal.git
-```
-## Minimum Requirements for the Project
-
-### LLM Models
-- **Groq** (Free)
-- **OpenAI** (Paid)
-- **Gemini** (15 Days Free Access)
-- **Claude** (Paid)
-- **Hugging Face** (Free)
-- **Ollama** (Local Setup)
-
-### Embedding Models
-- **OpenAI**
-- **Hugging Face**
-- **Gemini**
-
-### Vector Databases
-- **In-Memory**
-- **On-Disk**
-- **Cloud-Based**
-
-## API Keys
-
-### GROQ API Key
-- [Get your API Key](https://console.groq.com/keys)  
-- [Groq Documentation](https://console.groq.com/docs/overview)
-
-### Gemini API Key
-- [Get your API Key](https://aistudio.google.com/apikey)  
-- [Gemini Documentation](https://ai.google.dev/gemini-api/docs/models)
 
 
