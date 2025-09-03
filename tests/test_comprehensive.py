@@ -136,7 +136,6 @@ def test_document_analyzer_init_success():
         MockFixingParser.from_llm.return_value = MagicMock()
 
         analyzer = DocumentAnalyzer()
-
         assert analyzer.loader is not None
         assert analyzer.llm is not None
         assert analyzer.parser is not None
