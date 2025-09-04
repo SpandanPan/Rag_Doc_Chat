@@ -8,10 +8,11 @@ Refer to src/document_ingestion/data_ingestion.py
 
 # Added functionality to ingest images/table
 Refer to src/document_ingestion/data_ingestion.py
-Check at additional_files/check_image_table_handler.py
+Check at check_image_table_handler.py
 
 # Added Unit Tests 
 Refer to /tests/test_comprehensive.py
+Run locally run_tests.sh
 
 # Added langchain chache
 Refer to main/src/document_chat/retrieval.py
@@ -29,7 +30,7 @@ password - 1234
 
 # Added evaluation metric using deepeval 
 Only included correctness, can add other metrics like relevance etc. as I ran out of token limit, as deepeval requires openai api key
-Refer to additioanl_files/deep_eval_rag.py
+Refer to deep_eval_rag.py
 
 # Project Setup Guide
 
@@ -56,6 +57,9 @@ pip install -r requirements.txt
 
 # Initialize Git
 git init
+
+# Run application
+uvicorn api.main:app --host 0.0.0.0 --port 8080 --reload
 
 
 
