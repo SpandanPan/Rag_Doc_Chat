@@ -6,10 +6,12 @@ import uuid
 import hashlib
 import shutil
 from pathlib import Path
-from typing import Iterable, List, Optional, Dict, Any
+from typing import Iterable, List, Optional, Dict, Any,Union
 import fitz  # PyMuPDF
 import pandas as pd
 import docx
+from PIL import Image
+import pytesseract
 from pptx import Presentation
 from langchain.schema import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -21,7 +23,7 @@ from utils.file_io import generate_session_id, save_uploaded_files
 from utils.document_ops import load_documents,load_documents_from_sql,load_excel_or_csv_as_documents
 
 SUPPORTED_EXTENSIONS = {
-    ".pdf", ".docx", ".txt", ".pptx", ".csv", ".xlsx", ".xls", ".md"
+    ".pdf", ".docx", ".txt", ".pptx", ".csv", ".xlsx", ".md"
 }
 
 # FAISS Manager (load-or-create)
@@ -189,15 +191,11 @@ class ChatIngestor:
         
         except Exception as e:
              log.error("Failed to build retriever", error=str(e))
-             raise DocumentPortalException("Failed to build retriever", e) from e
-
-
-            
-        
+             raise DocumentPortalException("Failed to build retriever", e) from e  
             
 class DocHandler:
     """
-    PDF save + read (page-wise) for analysis.
+    File save + read (page-wise) for analysis.
     """
     def __init__(self, data_dir: Optional[str] = None, session_id: Optional[str] = None):
         self.data_dir = data_dir or os.getenv("DATA_STORAGE_PATH", os.path.join(os.getcwd(), "data", "document_analysis"))
@@ -329,3 +327,111 @@ class DocumentComparator:
             log.error("Error cleaning old sessions", error=str(e))
             raise DocumentPortalException("Error cleaning old sessions", e) from e
 
+
+
+
+SUPPORTED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".tiff", ".bmp"}
+
+
+class ImageHandler:
+    """
+    File save + read (metadata only) for image ingestion.
+    No OCR dependency.
+    """
+    def __init__(self, data_dir: Optional[str] = None, session_id: Optional[str] = None):
+        self.data_dir = data_dir or os.getenv(
+            "DATA_STORAGE_PATH", os.path.join(os.getcwd(), "data", "image_analysis")
+        )
+        self.session_id = session_id or generate_session_id("img_session")
+        self.session_path = os.path.join(self.data_dir, self.session_id)
+        os.makedirs(self.session_path, exist_ok=True)
+        log.info("ImageHandler initialized", session_id=self.session_id, session_path=self.session_path)
+
+    def save_file(self, uploaded_file) -> str:
+        try:
+            filename = os.path.basename(uploaded_file.name)
+            ext = Path(filename).suffix.lower()
+            if ext not in SUPPORTED_IMAGE_EXTENSIONS:
+                raise ValueError(f"Unsupported image type: {ext}. Supported: {SUPPORTED_IMAGE_EXTENSIONS}")
+            
+            save_path = os.path.join(self.session_path, filename)
+            with open(save_path, "wb") as f:
+                if hasattr(uploaded_file, "read"):
+                    f.write(uploaded_file.read())
+                else:
+                    f.write(uploaded_file.getbuffer())
+
+            log.info("Image saved successfully", file=filename, save_path=save_path, session_id=self.session_id)
+            return save_path
+        except Exception as e:
+            log.error("Failed to save image", error=str(e), session_id=self.session_id)
+            raise DocumentPortalException(f"Failed to save image: {str(e)}", e) from e
+
+    def read_file(self, file_path: str) -> dict:
+        """
+        Instead of OCR, return image metadata.
+        """
+        path = Path(file_path)
+        ext = path.suffix.lower()
+        try:
+            if ext not in SUPPORTED_IMAGE_EXTENSIONS:
+                raise ValueError(f"Unsupported image type: {ext}")
+
+            with Image.open(path) as img:
+                metadata = {
+                    "filename": path.name,
+                    "format": img.format,
+                    "mode": img.mode,
+                    "size": img.size,  # (width, height)
+                }
+            return metadata
+        except Exception as e:
+            log.error("Failed to read image", error=str(e), file_path=file_path, session_id=self.session_id)
+            raise DocumentPortalException(f"Could not process image: {file_path}", e) from e
+
+
+SUPPORTED_TABLE_EXTENSIONS = {".csv", ".xlsx", ".xls"}
+class TableHandler:
+    """
+    File save + read (table-based) for structured data analysis.
+    """
+    def __init__(self, data_dir: Optional[str] = None, session_id: Optional[str] = None):
+        self.data_dir = data_dir or os.getenv("DATA_STORAGE_PATH", os.path.join(os.getcwd(), "data", "table_analysis"))
+        self.session_id = session_id or generate_session_id("tbl_session")
+        self.session_path = os.path.join(self.data_dir, self.session_id)
+        os.makedirs(self.session_path, exist_ok=True)
+        log.info("TableHandler initialized", session_id=self.session_id, session_path=self.session_path)
+
+    def save_file(self, uploaded_file) -> str:
+        try:
+            filename = os.path.basename(uploaded_file.name)
+            ext = Path(filename).suffix.lower()
+            if ext not in SUPPORTED_TABLE_EXTENSIONS:
+                raise ValueError(f"Unsupported table type: {ext}. Supported: {SUPPORTED_TABLE_EXTENSIONS}")
+            save_path = os.path.join(self.session_path, filename)
+            with open(save_path, "wb") as f:
+                if hasattr(uploaded_file, "read"):
+                    f.write(uploaded_file.read())
+                else:
+                    f.write(uploaded_file.getbuffer())
+            log.info("Table saved successfully", file=filename, save_path=save_path, session_id=self.session_id)
+            return save_path
+        except Exception as e:
+            log.error("Failed to save table", error=str(e), session_id=self.session_id)
+            raise DocumentPortalException(f"Failed to save table: {str(e)}", e) from e
+
+    def read_file(self, file_path: str) -> str:
+        path = Path(file_path)
+        ext = path.suffix.lower()
+        try:
+            if ext == ".csv":
+                df = pd.read_csv(path)
+            elif ext in {".xlsx", ".xls"}:
+                df = pd.read_excel(path)
+            else:
+                raise ValueError(f"Unsupported table type: {ext}")
+            
+            return df.to_csv(index=False)  # return as CSV string (consistent with DocHandler)
+        except Exception as e:
+            log.error("Failed to read table", error=str(e), file_path=file_path, session_id=self.session_id)
+            raise DocumentPortalException(f"Could not process table: {file_path}", e) from e
