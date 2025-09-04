@@ -122,7 +122,6 @@ def test_document_analyzer_init_failure():
 def test_document_analyzer_init_success():
     from src.document_analyzer.data_analysis import DocumentAnalyzer
     from unittest.mock import patch, MagicMock
-
     with patch("src.document_analyzer.data_analysis.ModelLoader") as MockLoader, \
          patch("src.document_analyzer.data_analysis.JsonOutputParser") as MockParser, \
          patch("src.document_analyzer.data_analysis.OutputFixingParser") as MockFixingParser, \
