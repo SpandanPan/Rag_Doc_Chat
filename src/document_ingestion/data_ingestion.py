@@ -2,7 +2,6 @@ from __future__ import annotations
 import os
 import sys
 import json
-import uuid
 import hashlib
 import shutil
 from pathlib import Path
@@ -11,7 +10,6 @@ import fitz  # PyMuPDF
 import pandas as pd
 import docx
 from PIL import Image
-import pytesseract
 from pptx import Presentation
 from langchain.schema import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
