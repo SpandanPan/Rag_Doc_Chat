@@ -5,8 +5,8 @@ on:
     types:
       - completed
 env:
-  AWS_REGION: ap-southeast-2
-  ECR_REPOSITORY: documentportalliveclass
+  AWS_REGION: eu-north-1
+  ECR_REPOSITORY: documentportal_spandan
   ECS_SERVICE: document-portal-service
   ECS_CLUSTER: document-portal-cluster
   ECS_TASK_DEFINITION: .github/workflows/task_definition.json
