@@ -9,8 +9,9 @@ jobs:
   tests:
     runs-on: ubuntu-latest
     env:
-	GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
-	GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      GOOGLE_API_KEY: ${{secrets.GOOGLE_API_KEY }}
+      GROQ_API_KEY: ${{secrets.GROQ_API_KEY }}
+    
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
