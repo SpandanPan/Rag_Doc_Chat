@@ -9,7 +9,7 @@
   "memory": "8192",
   "containerDefinitions": [
     {
-      "name": "spandan_cicd",
+      "name": "document-portal-container",
       "image": "809978187004.dkr.ecr.eu-north-1.amazonaws.com/spandan_cicd",
       "cpu": 1024,
       "essential": true,
