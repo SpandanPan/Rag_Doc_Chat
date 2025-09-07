@@ -6,9 +6,9 @@ on:
       - completed
 env:
   AWS_REGION: eu-north-1
-  ECR_REPOSITORY: documentportal_spandan
+  ECR_REPOSITORY: spandan_cicd
   ECS_SERVICE: document-portal-service
-  ECS_CLUSTER: document-portal-cluster
+  ECS_CLUSTER: spandan_ecs
   ECS_TASK_DEFINITION: .github/workflows/task_definition.json
   CONTAINER_NAME: document-portal-container
 
